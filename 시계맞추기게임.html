@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>똑딱똑딱 시계 맞추기</title>
+<style>
+  :root{
+    --bg1:#e3f2fd; --bg2:#fff7e6;
+    --primary:#3b82f6; --primary-d:#2563eb;
+    --accent:#f59e0b; --good:#22c55e; --bad:#ef4444;
+    --ink:#1e293b; --soft:#64748b;
+    --card:#ffffff;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; margin:0;}
+  body{
+    font-family:"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+    background:linear-gradient(160deg,var(--bg1),var(--bg2));
+    color:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; user-select:none;
+  }
+  #app{
+    width:100%; max-width:920px; height:100%; max-height:1180px;
+    padding:18px; display:flex; flex-direction:column;
+  }
+  .screen{flex:1; display:none; flex-direction:column;}
+  .screen.active{display:flex;}
+
+  /* ---------- Start ---------- */
+  #startScreen{align-items:center; justify-content:center; text-align:center; gap:10px;}
+  .title{font-size:clamp(34px,7vw,64px); font-weight:900; color:var(--primary-d);
+    text-shadow:2px 3px 0 #fff, 4px 6px 0 rgba(0,0,0,.07); margin:0;}
+  .subtitle{font-size:clamp(15px,3vw,20px); color:var(--soft); margin:4px 0 10px;}
+  .bigClock{font-size:clamp(80px,20vw,150px); animation:tick 2s ease-in-out infinite;}
+  @keyframes tick{0%,100%{transform:rotate(-6deg);}50%{transform:rotate(6deg);}}
+  .btn{
+    border:none; border-radius:20px; cursor:pointer;
+    font-family:inherit; font-weight:800; transition:transform .08s, box-shadow .15s;
+    box-shadow:0 5px 0 rgba(0,0,0,.18);
+  }
+  .btn:active{transform:translateY(4px); box-shadow:0 1px 0 rgba(0,0,0,.18);}
+  .btn-primary{background:var(--primary); color:#fff;}
+  .btn-accent{background:var(--accent); color:#fff;}
+  .btn-ghost{background:#fff; color:var(--primary-d); box-shadow:0 4px 0 #cbd5e1;}
+  .btn-good{background:var(--good); color:#fff;}
+  .start-btn{font-size:clamp(22px,5vw,34px); padding:18px 56px; margin-top:8px;}
+  .level-pick{margin-top:22px; width:100%; max-width:560px;}
+  .level-pick h3{color:var(--soft); font-size:16px; margin:0 0 10px;}
+  .lvl-grid{display:grid; grid-template-columns:repeat(5,1fr); gap:10px;}
+  .lvl-cell{
+    aspect-ratio:1; border-radius:16px; background:#fff; box-shadow:0 4px 0 #cbd5e1;
+    font-size:22px; font-weight:900; color:var(--primary-d);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    border:3px solid transparent;
+  }
+  .lvl-cell.sel{border-color:var(--accent); color:var(--accent);}
+  .lvl-cell .sec{display:block; font-size:11px; color:var(--soft); font-weight:700;}
+
+  /* ---------- Game header ---------- */
+  .hud{display:flex; gap:10px; margin-bottom:10px;}
+  .chip{
+    flex:1; background:var(--card); border-radius:16px; padding:10px 6px;
+    text-align:center; box-shadow:0 3px 8px rgba(0,0,0,.06);
+  }
+  .chip .lab{font-size:12px; color:var(--soft); font-weight:700;}
+  .chip .val{font-size:clamp(20px,4.5vw,28px); font-weight:900; color:var(--ink); line-height:1.1;}
+  .chip.score .val{color:var(--accent);}
+  .chip.level .val{color:var(--primary-d);}
+
+  /* timer bar */
+  .timerWrap{height:18px; background:#e2e8f0; border-radius:12px; overflow:hidden; margin-bottom:12px; position:relative;}
+  .timerBar{height:100%; width:100%; background:linear-gradient(90deg,#22c55e,#84cc16); transition:width .1s linear; border-radius:12px;}
+  .timerBar.warn{background:linear-gradient(90deg,#f59e0b,#f97316);}
+  .timerBar.danger{background:linear-gradient(90deg,#ef4444,#f43f5e);}
+  .timerNum{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:900; color:#1e293b;}
+
+  /* clock */
+  .clockArea{display:flex; align-items:center; justify-content:center; flex:1; min-height:0;}
+  svg.clock{width:min(70vw,360px); height:min(70vw,360px); filter:drop-shadow(0 8px 16px rgba(0,0,0,.15));}
+
+  /* inputs */
+  .inputs{display:flex; justify-content:center; gap:8px; margin:6px 0 10px;}
+  .field{
+    background:#fff; border-radius:16px; padding:8px 6px; min-width:84px; text-align:center;
+    box-shadow:0 3px 8px rgba(0,0,0,.07); border:3px solid #e2e8f0; cursor:pointer;
+  }
+  .field.active{border-color:var(--primary);}
+  .field .flab{font-size:12px; color:var(--soft); font-weight:700;}
+  .field .fval{font-size:clamp(26px,6vw,38px); font-weight:900; color:var(--ink); min-height:1.1em;}
+  .field .fval.empty{color:#cbd5e1;}
+  .colon{font-size:34px; font-weight:900; color:var(--soft); align-self:center; margin-top:14px;}
+
+  /* keypad */
+  .keypad{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; max-width:430px; margin:0 auto; width:100%;}
+  .key{
+    background:#fff; border-radius:16px; padding:16px 0; font-size:clamp(22px,5vw,30px); font-weight:900;
+    color:var(--ink); box-shadow:0 4px 0 #cbd5e1; cursor:pointer; text-align:center;
+  }
+  .key:active{transform:translateY(4px); box-shadow:0 0 0 #cbd5e1;}
+  .key.fn{font-size:18px; color:#fff;}
+  .key.clear{background:#f97316; box-shadow:0 4px 0 #c2410c;}
+  .key.submit{background:var(--good); box-shadow:0 4px 0 #15803d;}
+
+  /* feedback overlay */
+  #fx{position:fixed; inset:0; pointer-events:none; display:none; align-items:center; justify-content:center; z-index:50;}
+  #fx.show{display:flex;}
+  .fxCard{
+    background:#fff; border-radius:28px; padding:26px 40px; text-align:center;
+    box-shadow:0 20px 50px rgba(0,0,0,.25); animation:pop .35s cubic-bezier(.2,1.4,.4,1);
+  }
+  @keyframes pop{0%{transform:scale(.4); opacity:0;}100%{transform:scale(1); opacity:1;}}
+  .fxEmoji{font-size:80px; line-height:1;}
+  .fxText{font-size:30px; font-weight:900; margin-top:6px;}
+  .fxText.good{color:var(--good);} .fxText.bad{color:var(--bad);}
+  .fxSub{font-size:18px; color:var(--soft); margin-top:4px;}
+  .confetti{position:absolute; width:12px; height:18px; top:-20px; will-change:transform; border-radius:3px;}
+
+  /* result */
+  #resultScreen{align-items:center; justify-content:center; text-align:center; gap:8px;}
+  .resEmoji{font-size:90px;}
+  .resTitle{font-size:36px; font-weight:900; margin:0;}
+  .resBox{background:#fff; border-radius:20px; padding:20px 30px; box-shadow:0 8px 20px rgba(0,0,0,.08); margin:8px 0;}
+  .resRow{display:flex; justify-content:space-between; gap:40px; font-size:20px; padding:6px 0;}
+  .resRow b{color:var(--accent); font-size:24px;}
+  .resBtns{display:flex; gap:14px; margin-top:8px; flex-wrap:wrap; justify-content:center;}
+  .resBtns .btn{font-size:20px; padding:16px 32px;}
+  .stars{font-size:46px; letter-spacing:6px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- START -->
+  <section id="startScreen" class="screen active">
+    <div class="bigClock">🕐</div>
+    <h1 class="title">똑딱똑딱 시계 맞추기</h1>
+    <p class="subtitle">시계가 빙글빙글 돌다 멈추면, 몇 시 몇 분 몇 초인지 맞혀 보세요!</p>
+    <button class="btn btn-primary start-btn" id="startBtn">게임 시작 ▶</button>
+    <div class="level-pick">
+      <h3>시작 단계 고르기 (제한시간)</h3>
+      <div class="lvl-grid" id="lvlGrid"></div>
+    </div>
+  </section>
+
+  <!-- GAME -->
+  <section id="gameScreen" class="screen">
+    <div class="hud">
+      <div class="chip level"><div class="lab">단계</div><div class="val" id="hudLevel">1</div></div>
+      <div class="chip"><div class="lab">문제</div><div class="val" id="hudQ">1/10</div></div>
+      <div class="chip score"><div class="lab">점수</div><div class="val" id="hudScore">0</div></div>
+    </div>
+    <div class="timerWrap"><div class="timerBar" id="timerBar"></div><div class="timerNum" id="timerNum"></div></div>
+
+    <div class="clockArea">
+      <svg class="clock" viewBox="0 0 200 200" id="clockSvg"></svg>
+    </div>
+
+    <div class="inputs">
+      <div class="field" data-f="h"><div class="flab">시</div><div class="fval empty" id="valH">--</div></div>
+      <div class="colon">:</div>
+      <div class="field" data-f="m"><div class="flab">분</div><div class="fval empty" id="valM">--</div></div>
+      <div class="colon">:</div>
+      <div class="field" data-f="s"><div class="flab">초</div><div class="fval empty" id="valS">--</div></div>
+    </div>
+
+    <div class="keypad" id="keypad">
+      <div class="key" data-k="1">1</div><div class="key" data-k="2">2</div><div class="key" data-k="3">3</div>
+      <div class="key" data-k="4">4</div><div class="key" data-k="5">5</div><div class="key" data-k="6">6</div>
+      <div class="key" data-k="7">7</div><div class="key" data-k="8">8</div><div class="key" data-k="9">9</div>
+      <div class="key fn clear" data-k="clear">지우기</div><div class="key" data-k="0">0</div><div class="key fn submit" data-k="submit">제출 ✔</div>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section id="resultScreen" class="screen">
+    <div class="resEmoji" id="resEmoji">🎉</div>
+    <h2 class="resTitle" id="resTitle">모듈 완료!</h2>
+    <div class="stars" id="resStars"></div>
+    <div class="resBox">
+      <div class="resRow"><span>맞힌 문제</span><b id="resCorrect">0 / 10</b></div>
+      <div class="resRow"><span>이번 점수</span><b id="resScore">0</b></div>
+      <div class="resRow"><span>누적 점수</span><b id="resTotal">0</b></div>
+    </div>
+    <p id="resMsg" class="subtitle"></p>
+    <div class="resBtns" id="resBtns"></div>
+  </section>
+
+</div>
+
+<div id="fx"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- config ----------
+  const QUESTIONS_PER_MODULE = 10;
+  const MAX_LEVEL = 10;
+  const BASE_POINTS = 100;
+  const BONUS_PER_SEC = 10;          // 남은 시간 1초당 보너스
+  const timeForLevel = lvl => 15 - (lvl - 1);   // L1=15s ... L10=6s
+
+  // ---------- state ----------
+  let level = 1;
+  let qIndex = 0;
+  let moduleScore = 0;
+  let totalScore = 0;
+  let correctCount = 0;
+  let answer = {h:0,m:0,s:0};
+  let input = {h:"",m:"",s:""};
+  let activeField = "h";
+  let timeLeft = 0, timerId = null, locked = true;
+  let limit = 15;
+
+  // ---------- elements ----------
+  const $ = id => document.getElementById(id);
+  const screens = {start:$("startScreen"), game:$("gameScreen"), result:$("resultScreen")};
+  function show(name){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[name].classList.add("active"); }
+
+  // ---------- audio (Web Audio, 파일 불필요) ----------
+  let actx=null;
+  function ac(){ if(!actx){ try{actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} } return actx; }
+  function beep(freq,dur,type,when,vol){
+    const c=ac(); if(!c) return;
+    const o=c.createOscillator(), g=c.createGain();
+    o.type=type||"sine"; o.frequency.value=freq;
+    const t=c.currentTime+(when||0);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(vol||0.25,t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+dur+0.02);
+  }
+  const sndTick = ()=>beep(1500,0.03,"square",0,0.06);
+  const sndKey  = ()=>beep(660,0.05,"triangle",0,0.12);
+  const sndGood = ()=>{ [523,659,784,1047].forEach((f,i)=>beep(f,0.18,"sine",i*0.09,0.25)); };
+  const sndBad  = ()=>{ beep(300,0.2,"sawtooth",0,0.2); beep(200,0.25,"sawtooth",0.12,0.18); };
+  const sndLevel= ()=>{ [523,659,784,1047,1319].forEach((f,i)=>beep(f,0.22,"triangle",i*0.1,0.25)); };
+  const sndSpin = ()=>{ for(let i=0;i<10;i++) beep(1200+i*60,0.04,"square",i*0.12,0.05); };
+
+  // ---------- build clock face ----------
+  const svg = $("clockSvg");
+  const NS="http://www.w3.org/2000/svg";
+  function el(tag,attrs){ const e=document.createElementNS(NS,tag); for(const k in attrs) e.setAttribute(k,attrs[k]); return e; }
+  function buildFace(){
+    svg.innerHTML="";
+    svg.appendChild(el("circle",{cx:100,cy:100,r:98,fill:"#fff",stroke:"#1e293b","stroke-width":4}));
+    svg.appendChild(el("circle",{cx:100,cy:100,r:92,fill:"none",stroke:"#e2e8f0","stroke-width":1}));
+    // ticks
+    for(let i=0;i<60;i++){
+      const a=i*6*Math.PI/180, big=(i%5===0);
+      const r1=big?78:84, r2=90;
+      svg.appendChild(el("line",{
+        x1:100+r1*Math.sin(a), y1:100-r1*Math.cos(a),
+        x2:100+r2*Math.sin(a), y2:100-r2*Math.cos(a),
+        stroke:big?"#1e293b":"#94a3b8", "stroke-width":big?3:1.4, "stroke-linecap":"round"
+      }));
+    }
+    // numbers 1-12
+    for(let n=1;n<=12;n++){
+      const a=n*30*Math.PI/180, r=64;
+      const t=el("text",{x:100+r*Math.sin(a), y:100-r*Math.cos(a)+8,
+        "text-anchor":"middle","font-size":18,"font-weight":900,fill:"#1e293b","font-family":"Arial"});
+      t.textContent=n; svg.appendChild(t);
+    }
+    // hands
+    svg.appendChild(el("line",{id:"handH",x1:100,y1:100,x2:100,y2:50,stroke:"#1e293b","stroke-width":7,"stroke-linecap":"round"}));
+    svg.appendChild(el("line",{id:"handM",x1:100,y1:100,x2:100,y2:30,stroke:"#334155","stroke-width":5,"stroke-linecap":"round"}));
+    svg.appendChild(el("line",{id:"handS",x1:100,y1:100,x2:100,y2:24,stroke:"#ef4444","stroke-width":2.4,"stroke-linecap":"round"}));
+    svg.appendChild(el("circle",{cx:100,cy:100,r:6,fill:"#1e293b"}));
+    svg.appendChild(el("circle",{cx:100,cy:100,r:3,fill:"#ef4444"}));
+  }
+  function setHands(hAng,mAng,sAng){
+    svg.querySelector("#handH").setAttribute("transform",`rotate(${hAng} 100 100)`);
+    svg.querySelector("#handM").setAttribute("transform",`rotate(${mAng} 100 100)`);
+    svg.querySelector("#handS").setAttribute("transform",`rotate(${sAng} 100 100)`);
+  }
+  function anglesFor(h,m,s){
+    return {
+      h:(h%12)*30 + m*0.5 + s*(0.5/60),
+      m:m*6,           // 분침은 정확한 눈금(읽기 쉽게)
+      s:s*6
+    };
+  }
+
+  // spin animation (<= 1.8s) then settle
+  function spinTo(target){
+    const dur=1700;
+    const start=performance.now();
+    const extraH=360*2, extraM=360*4, extraS=360*8; // 회전 횟수
+    const tgt=anglesFor(target.h,target.m,target.s);
+    sndSpin();
+    function frame(now){
+      let p=(now-start)/dur; if(p>1)p=1;
+      const e=1-Math.pow(1-p,3); // ease-out cubic
+      setHands(extraH*e + tgt.h*e, extraM*e + tgt.m*e, extraS*e + tgt.s*e);
+      if(p<1) requestAnimationFrame(frame);
+      else { setHands(tgt.h,tgt.m,tgt.s); startTimer(); }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- question ----------
+  function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+  function newQuestion(){
+    locked=true;
+    answer={h:randInt(1,12), m:randInt(0,59), s:randInt(0,59)};
+    input={h:"",m:"",s:""}; activeField="h"; renderInputs();
+    $("hudLevel").textContent=level;
+    $("hudQ").textContent=(qIndex+1)+"/"+QUESTIONS_PER_MODULE;
+    $("hudScore").textContent=moduleScore;
+    limit=timeForLevel(level);
+    // reset timer display full
+    $("timerBar").style.width="100%"; $("timerNum").textContent=limit.toFixed(1)+"초";
+    buildFace(); setHands(0,0,0);
+    spinTo(answer);  // 회전 후 startTimer 호출
+  }
+
+  function startTimer(){
+    locked=false;
+    timeLeft=limit;
+    const tick0=()=>{
+      timeLeft-=0.1;
+      if(timeLeft<0) timeLeft=0;
+      const pct=(timeLeft/limit)*100;
+      const bar=$("timerBar");
+      bar.style.width=pct+"%";
+      bar.className="timerBar"+(pct<33?" danger":pct<60?" warn":"");
+      $("timerNum").textContent=timeLeft.toFixed(1)+"초";
+      if(Math.abs(timeLeft-Math.round(timeLeft))<0.05 && timeLeft<=3 && timeLeft>0) sndTick();
+      if(timeLeft<=0){ clearInterval(timerId); timeUp(); }
+    };
+    clearInterval(timerId);
+    timerId=setInterval(tick0,100);
+  }
+
+  function timeUp(){
+    if(locked) return; locked=true;
+    judge(false,0,true);
+  }
+
+  // ---------- input ----------
+  function renderInputs(){
+    const map={h:"valH",m:"valM",s:"valS"};
+    ["h","m","s"].forEach(f=>{
+      const e=$(map[f]);
+      if(input[f]===""){ e.textContent="--"; e.classList.add("empty"); }
+      else { e.textContent=input[f]; e.classList.remove("empty"); }
+    });
+    document.querySelectorAll(".field").forEach(fl=>{
+      fl.classList.toggle("active", fl.dataset.f===activeField);
+    });
+  }
+  function pressKey(k){
+    if(locked) return;
+    if(k==="clear"){ input[activeField]=""; sndKey(); renderInputs(); return; }
+    if(k==="submit"){ submit(); return; }
+    // digit
+    sndKey();
+    let cur=input[activeField]+k;
+    const max = activeField==="h"?12:59;
+    let num=parseInt(cur,10);
+    if(num>max){ cur=k; num=parseInt(cur,10); if(num>max) return; }
+    input[activeField]=cur;
+    renderInputs();
+    // auto-advance when field is "full"
+    const full = (activeField==="h") ? (cur.length>=2 || num>1) : (cur.length>=2);
+    if(full){ activeField = activeField==="h"?"m":activeField==="m"?"s":"s"; renderInputs(); }
+  }
+
+  function submit(){
+    if(locked) return;
+    if(input.h===""||input.m===""||input.s===""){
+      // 미입력 칸으로 이동 안내
+      activeField = input.h===""?"h":input.m===""?"m":"s";
+      renderInputs(); sndKey(); return;
+    }
+    clearInterval(timerId);
+    locked=true;
+    const ok = parseInt(input.h,10)===answer.h && parseInt(input.m,10)===answer.m && parseInt(input.s,10)===answer.s;
+    let pts=0;
+    if(ok){ pts=BASE_POINTS + Math.ceil(timeLeft)*BONUS_PER_SEC; }
+    judge(ok,pts,false);
+  }
+
+  // ---------- feedback ----------
+  function judge(ok,pts,timedOut){
+    if(ok){ correctCount++; moduleScore+=pts; totalScore+=pts; $("hudScore").textContent=moduleScore; sndGood(); confetti(); }
+    else { sndBad(); }
+    showFx(ok,pts,timedOut);
+  }
+
+  function showFx(ok,pts,timedOut){
+    const fx=$("fx");
+    const goodE=["🎉","😄","🌟","👏","💯"];
+    const badE=["😅","🙈","💪","🤔"];
+    const emoji = ok ? goodE[randInt(0,goodE.length-1)] : badE[randInt(0,badE.length-1)];
+    const ansStr = pad(answer.h)+":"+pad(answer.m)+":"+pad(answer.s);
+    const head = ok ? "정답이에요!" : (timedOut?"시간 초과!":"아쉬워요!");
+    const sub = ok ? ("+"+pts+"점  (시간 보너스 포함)") : ("정답은 "+ansStr+" 였어요");
+    fx.innerHTML =
+      '<div class="fxCard">'+
+      '<div class="fxEmoji">'+emoji+'</div>'+
+      '<div class="fxText '+(ok?"good":"bad")+'">'+head+'</div>'+
+      '<div class="fxSub">'+sub+'</div>'+
+      '</div>';
+    fx.classList.add("show");
+    setTimeout(()=>{ fx.classList.remove("show"); nextStep(); }, ok?1300:1700);
+  }
+  function pad(n){ return (n<10?"0":"")+n; }
+
+  function confetti(){
+    const fx=$("fx");
+    const colors=["#f59e0b","#3b82f6","#22c55e","#ef4444","#a855f7","#ec4899"];
+    for(let i=0;i<40;i++){
+      const c=document.createElement("div");
+      c.className="confetti";
+      c.style.left=Math.random()*100+"%";
+      c.style.background=colors[i%colors.length];
+      c.style.transform="rotate("+Math.random()*360+"deg)";
+      fx.appendChild(c);
+      const dx=(Math.random()*2-1)*200, dy=window.innerHeight+50, rot=Math.random()*720;
+      c.animate([
+        {transform:`translate(0,0) rotate(0deg)`, opacity:1},
+        {transform:`translate(${dx}px,${dy}px) rotate(${rot}deg)`, opacity:0.9}
+      ],{duration:1200+Math.random()*600, easing:"cubic-bezier(.3,.7,.5,1)"});
+      setTimeout(()=>c.remove(),1900);
+    }
+  }
+
+  // ---------- flow ----------
+  function nextStep(){
+    qIndex++;
+    if(qIndex>=QUESTIONS_PER_MODULE){ endModule(); }
+    else { newQuestion(); }
+  }
+
+  function endModule(){
+    clearInterval(timerId);
+    const perfect = correctCount===QUESTIONS_PER_MODULE;
+    $("resCorrect").textContent=correctCount+" / "+QUESTIONS_PER_MODULE;
+    $("resScore").textContent=moduleScore;
+    $("resTotal").textContent=totalScore;
+    // stars by correct count
+    const starN = correctCount>=10?3:correctCount>=8?2:correctCount>=5?1:0;
+    $("resStars").textContent="⭐".repeat(starN)+"☆".repeat(3-starN);
+
+    const btns=$("resBtns"); btns.innerHTML="";
+    if(perfect && level<MAX_LEVEL){
+      $("resEmoji").textContent="🏆";
+      $("resTitle").textContent="만점! 단계 통과!";
+      $("resMsg").textContent=(level+1)+"단계로 올라갑니다. (제한시간 "+timeForLevel(level+1)+"초)";
+      sndLevel();
+      addBtn(btns,"다음 단계로 ▶","btn-good",()=>{ level++; startModule(); });
+    } else if(perfect && level===MAX_LEVEL){
+      $("resEmoji").textContent="👑";
+      $("resTitle").textContent="모든 단계 완료!";
+      $("resMsg").textContent="10단계 만점! 시계 박사님이 되었어요!";
+      sndLevel(); confetti();
+      addBtn(btns,"처음부터 다시","btn-primary",()=>{ level=1; totalScore=0; startModule(); });
+    } else {
+      $("resEmoji").textContent= correctCount>=8?"😊":"💪";
+      $("resTitle").textContent="모듈 완료!";
+      $("resMsg").textContent="만점을 받으면 다음 단계로 올라가요. 한 번 더 도전해 볼까요?";
+      addBtn(btns,"이 단계 다시 도전","btn-accent",()=>{ startModule(); });
+      if(level>1) addBtn(btns,"이전 단계로","btn-ghost",()=>{ level--; startModule(); });
+    }
+    addBtn(btns,"처음 화면","btn-ghost",()=>{ show("start"); });
+    show("result");
+  }
+  function addBtn(parent,label,cls,fn){
+    const b=document.createElement("button");
+    b.className="btn "+cls; b.textContent=label;
+    b.addEventListener("click",fn); parent.appendChild(b);
+  }
+
+  function startModule(){
+    qIndex=0; moduleScore=0; correctCount=0;
+    show("game"); newQuestion();
+  }
+
+  // ---------- level picker ----------
+  function buildLevelPicker(){
+    const g=$("lvlGrid"); g.innerHTML="";
+    for(let l=1;l<=MAX_LEVEL;l++){
+      const c=document.createElement("div");
+      c.className="lvl-cell"+(l===level?" sel":"");
+      c.innerHTML=l+'<span class="sec">'+timeForLevel(l)+'초</span>';
+      c.addEventListener("click",()=>{ level=l; buildLevelPicker(); });
+      g.appendChild(c);
+    }
+  }
+
+  // ---------- events ----------
+  $("startBtn").addEventListener("click",()=>{ ac(); startModule(); });
+  $("keypad").addEventListener("click",e=>{
+    const k=e.target.closest(".key"); if(k) pressKey(k.dataset.k);
+  });
+  document.querySelectorAll(".field").forEach(f=>{
+    f.addEventListener("click",()=>{ if(!locked){ activeField=f.dataset.f; sndKey(); renderInputs(); } });
+  });
+  // 키보드도 지원(데스크톱 테스트용)
+  document.addEventListener("keydown",e=>{
+    if(!screens.game.classList.contains("active")||locked) return;
+    if(/^[0-9]$/.test(e.key)) pressKey(e.key);
+    else if(e.key==="Enter") pressKey("submit");
+    else if(e.key==="Backspace") pressKey("clear");
+    else if(e.key==="Tab"){ e.preventDefault(); activeField=activeField==="h"?"m":activeField==="m"?"s":"h"; renderInputs(); }
+  });
+
+  // init
+  buildFace(); buildLevelPicker();
+})();
+</script>
+</body>
+</html>
