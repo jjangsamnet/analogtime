@@ -279,7 +279,7 @@ service cloud.firestore {
     <h1 class="title" id="lobbyTitle">준비됐나요?</h1>
     <p class="subtitle" id="lobbyWho"></p>
     <button class="btn btn-primary" id="playBtn" style="font-size:26px; padding:16px 52px; margin-top:6px;">게임 시작 ▶</button>
-    <h3 class="muted" style="margin:18px 0 0;">시작 단계 고르기 (제한시간)</h3>
+    <h3 class="muted" id="lvlHeading" style="margin:18px 0 0;">시작 단계 고르기 (제한시간)</h3>
     <div class="lvl-grid" id="lvlGrid"></div>
     <button class="iconbtn" id="lobbyBack" style="margin-top:18px;">← 처음으로</button>
   </section>
@@ -573,7 +573,7 @@ function buildLevelPicker(){
     c.className="lvl-cell"+(l===level?" sel":""); c.innerHTML=l+'<span class="sec">'+timeForLevel(l)+'초</span>';
     c.addEventListener("click",()=>{ level=l; buildLevelPicker(); }); g.appendChild(c); }
 }
-function openLobby(){ buildLevelPicker();
+function openLobby(){ const isStudent=session.role==="student"; if(isStudent){level=1;} buildLevelPicker(); $("lvlHeading").style.display=isStudent?"none":""; $("lvlGrid").style.display=isStudent?"none":"";
   $("lobbyWho").textContent = session.role==="student"? ("교실 "+session.code+" · "+session.nickname) : "선생님 체험 모드";
   show("lobby"); }
 
